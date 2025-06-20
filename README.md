@@ -2,7 +2,7 @@
 
 ## Overview
 
-A modern, fully working chat interface built with **Next.js** and **Model Context Protocol (MCP)**. Connect to both remote and local MCP servers, use tool-calling (like Cursor/Windsurf), and switch between 6 LLM providers with zero config changes.
+A modern, fully working chat interface built with **Next.js** and **Model Context Protocol (MCP)**. Connect to both remote and local MCP servers, use tool-calling (like Cursor/Windsurf), and switch between LLM providers with zero config changes.
 
 > **Note:** This is a demo app to show how to connect to MCP servers in Next.js. Not production-ready.
 
@@ -43,7 +43,6 @@ Read more: [modelcontextprotocol.io](https://modelcontextprotocol.io/introductio
 - **Provider Adapter Pattern**
 - **Tailwind CSS** + **shadcn/ui**
 - **Model Context Protocol (MCP) SDK**
-- **Composio API** (optional, for hosted MCP servers)
 
 ---
 

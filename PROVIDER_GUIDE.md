@@ -5,28 +5,10 @@ This guide shows you how to quickly switch between different LLM providers using
 ## 🚀 Quick Commands
 
 ```bash
-# Test current provider
-yarn run test-provider
-
-# Setup a new provider (interactive)
-yarn run setup-provider
-
 # Build and run
 yarn build
 yarn dev
 ```
-
-## 🌟 Supported Providers
-
-The chat client now supports **6 different LLM providers** with automatic API format conversion:
-
-| Provider | Icon | Description | API Format |
-|----------|------|-------------|------------|
-| OpenAI | 🤖 | GPT models (4o, 3.5-turbo, etc.) | OpenAI Compatible |
-| Claude | 🧠 | Anthropic's Claude models | Custom (auto-converted) |
-| Gemini | 💎 | Google's Gemini models | Custom (auto-converted) |
-| Ollama | 🦙 | Local inference | OpenAI Compatible |
-| Custom | ⚙️ | Any OpenAI-compatible server | OpenAI Compatible |
 
 ## 📝 Environment Variables Reference
 
@@ -201,6 +183,5 @@ The new architecture makes adding providers trivial:
 1. **Create Provider Class** (`lib/providers/newprovider-provider.ts`)
 2. **Add to Factory** (`lib/providers/provider-factory.ts`)
 3. **Add Environment Variables** (`.env.example`)
-4. **Update Setup Script** (`scripts/setup-provider.js`)
 
 No need to modify any existing code! 🎉
