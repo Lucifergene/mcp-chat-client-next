@@ -1,0 +1,21 @@
+{
+  "servers": [
+    {
+      "name": "local-server-build",
+      "scriptPath": "/path/to/your/workspace/local-server/build/index.js",
+      "args": ["/path/to/your/workspace"],
+      "env": {
+        "LOCAL_SERVER_API_KEY": "your-local-server-api-key"
+      }
+    },
+    {
+      "name": "remote-sse-server",
+      "type": "sse",
+      "url": "http://localhost:8000/sse"
+    },
+    {
+      "name": "kubernetes-server",
+      "npxCommand": "kubernetes-mcp-server@latest"
+    }
+  ]
+}
