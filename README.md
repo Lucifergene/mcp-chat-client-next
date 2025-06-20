@@ -113,7 +113,7 @@ ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
 ```env
 LLM_PROVIDER=gemini
 GOOGLE_API_KEY=<your_google_api_key>
-GEMINI_MODEL=gemini-1.5-pro
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 </details>
@@ -125,7 +125,7 @@ First, make sure Ollama is running locally:
 
 ```bash
 curl -fsSL https://ollama.ai/install.sh | sh
-ollama pull llama3.2
+ollama pull llama3.1:8b
 ollama serve
 ```
 
@@ -134,7 +134,7 @@ Then configure your `.env`:
 ```env
 LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434/v1
-OLLAMA_MODEL=llama3.2
+OLLAMA_MODEL=llama3.1:8b
 ```
 
 </details>
@@ -212,12 +212,6 @@ The application supports both **STDIO** and **SSE** MCP server connections throu
 
 ---
 
-### 5. Test your configuration
-
-```bash
-yarn run test-provider
-```
-
 **Expected Output:**
 
 ```
@@ -269,47 +263,6 @@ This project uses a **Provider Adapter Pattern** to support multiple LLM provide
 - ✅ Easy to extend: Add new providers by creating one class
 - ✅ Consistent interface: All providers implement the same methods
 - ✅ Auto API conversion: Each provider handles its own API format
-
----
-
-## 🎯 Quick Start Examples
-
-<details>
-<summary>Switch to Claude</summary>
-
-```bash
-echo "LLM_PROVIDER=claude" > .env.local
-echo "ANTHROPIC_API_KEY=sk-ant-api03-your-key" >> .env.local
-yarn run test-provider
-yarn run dev
-```
-
-</details>
-
-<details>
-<summary>Switch to Ollama</summary>
-
-```bash
-ollama serve
-ollama pull llama3.2
-echo "LLM_PROVIDER=ollama" > .env.local
-yarn run test-provider
-yarn run dev
-```
-
-</details>
-
-<details>
-<summary>Switch to Gemini</summary>
-
-```bash
-echo "LLM_PROVIDER=gemini" > .env.local
-echo "GOOGLE_API_KEY=your-google-key" >> .env.local
-yarn run test-provider
-yarn run dev
-```
-
-</details>
 
 ---
 

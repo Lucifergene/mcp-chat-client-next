@@ -41,7 +41,7 @@ GEMINI_MODEL=gemini-1.5-pro  # or gemini-1.5-flash
 ```bash
 LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434/v1
-OLLAMA_MODEL=llama3.2  # or mistral, codellama, etc.
+OLLAMA_MODEL=llama3.1:8b  # or mistral, codellama, etc.
 ```
 
 ### ⚙️ Custom Server
@@ -74,7 +74,7 @@ CUSTOM_MODEL=your-model-name
 
 ### Ollama Models
 
-- `llama3.2` - Meta's latest Llama (recommended)
+- `llama3.1:8b` - Meta's latest Llama (recommended)
 - `mistral` - Mistral 7B
 - `codellama` - Code-specialized
 - `phi3` - Microsoft's compact model
@@ -102,9 +102,6 @@ Just change the `LLM_PROVIDER` variable and restart:
 # Switch to Claude
 echo "LLM_PROVIDER=claude" > .env.local
 echo "ANTHROPIC_API_KEY=your-key" >> .env.local
-
-# Test the connection
-yarn run test-provider
 
 # Start the app
 yarn run dev
@@ -143,10 +140,10 @@ ollama serve
 ollama list
 
 # Pull a specific model
-ollama pull llama3.2
+ollama pull llama3.1:8b
 
 # Check model is loaded
-ollama show llama3.2
+ollama show llama3.1:8b
 ```
 
 ### ⚙️ Custom Server Issues
