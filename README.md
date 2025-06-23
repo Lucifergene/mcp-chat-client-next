@@ -1,5 +1,11 @@
 # 💬 React ChatBot with MCP Support
 
+
+
+![image](https://github.com/user-attachments/assets/e4e802ce-693e-4e0e-a35c-61b634137388)
+
+
+
 ## Overview
 
 A modern, fully working chat interface built with **Next.js** and **Model Context Protocol (MCP)**. Connect to both remote and local MCP servers, use tool-calling (like Cursor/Windsurf), and switch between LLM providers with zero config changes.
