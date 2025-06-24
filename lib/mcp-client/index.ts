@@ -1,6 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import * as path from "path";
 import dotenv from "dotenv";
 import { findNpxPath } from "../server-utils";
@@ -40,10 +41,11 @@ export interface ServerConfig {
   npxCommand?: string;
   args?: string[];
   env?: Record<string, string>;
-  // For SSE connections
+  // For SSE and Streamable HTTP connections
   url?: string;
+  headers?: Record<string, string>;
   // Connection type
-  type?: "stdio" | "sse";
+  type?: "stdio" | "sse" | "streamable-http";
 }
 
 export async function initMCP(serverConfigs: ServerConfig[]) {
@@ -59,10 +61,36 @@ export async function initMCP(serverConfigs: ServerConfig[]) {
 
     let transport;
 
-    // Determine connection type
-    const connectionType = config.type || (config.url ? "sse" : "stdio");
+    // Determine connection type - default to stdio if no url, streamable-http if url without explicit type
+    const connectionType = config.type || (config.url ? "streamable-http" : "stdio");
 
-    if (connectionType === "sse") {
+    if (connectionType === "streamable-http") {
+      // Streamable HTTP connection
+      if (!config.url) {
+        throw new Error(
+          `Server config for '${config.name}' with streamable-http type must have a url`
+        );
+      }
+
+      const transportOptions: any = {};
+
+      // Add headers if provided
+      if (config.headers) {
+        transportOptions.requestInit = {
+          headers: config.headers,
+        };
+      }
+
+      transport = new StreamableHTTPClientTransport(
+        new URL(config.url),
+        transportOptions
+      );
+      console.log(
+        `Connecting to MCP server '${config.name}' via Streamable HTTP at ${
+          config.url
+        }${config.headers ? " with auth headers" : ""}`
+      );
+    } else if (connectionType === "sse") {
       // SSE connection
       if (!config.url) {
         throw new Error(
@@ -70,9 +98,18 @@ export async function initMCP(serverConfigs: ServerConfig[]) {
         );
       }
 
-      transport = new SSEClientTransport(new URL(config.url));
+      const transportOptions: any = { url: new URL(config.url) };
+
+      // Add headers if provided
+      if (config.headers) {
+        transportOptions.headers = config.headers;
+      }
+
+      transport = new SSEClientTransport(transportOptions);
       console.log(
-        `Connecting to MCP server '${config.name}' via SSE at ${config.url}`
+        `Connecting to MCP server '${config.name}' via SSE at ${config.url}${
+          config.headers ? " with auth headers" : ""
+        }`
       );
     } else {
       // STDIO connection (default)
@@ -121,6 +158,7 @@ export async function initMCP(serverConfigs: ServerConfig[]) {
       console.log(`Connecting to MCP server '${config.name}' via STDIO`);
     }
 
+    // Connect the client with the appropriate transport
     await client.connect(transport);
 
     const toolsResult = await client.listTools();

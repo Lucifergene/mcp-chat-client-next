@@ -11,7 +11,17 @@
     {
       "name": "remote-sse-server",
       "type": "sse",
-      "url": "http://localhost:8000/sse"
+      "url": "http://localhost:8000/sse",
+      "headers": {
+        "Authorization": "Bearer your-api-token-here"
+      }
+    },
+    {
+      "name": "streamable-http-server",
+      "url": "http://localhost:8000/mcp",
+      "headers": {
+        "Authorization": "Bearer your-api-token-here"
+      }
     },
     {
       "name": "kubernetes-server",
