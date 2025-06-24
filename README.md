@@ -30,7 +30,7 @@ MCP Chat Client Next is a demonstration application showcasing how to integrate 
 
 Watch the video demonstration of MCP Chat Client Next in action:
 
-![Watch the video](https://github.com/user-attachments/assets/98b27cbc-3e0a-471d-bd00-6d8ba9fadb36)
+https://github.com/user-attachments/assets/84390f7b-710e-432e-9738-ae831e489c4b
 
 ### What is MCP?
 
