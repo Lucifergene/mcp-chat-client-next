@@ -26,6 +26,13 @@
     {
       "name": "kubernetes-server",
       "npxCommand": "kubernetes-mcp-server@latest"
+    },
+    {
+      "name": "backstage-server",
+      "url": "http://localhost:7007/api/mcp-actions/v1",
+      "headers": {
+        "Authorization": "Bearer PVwjB59lWS0raDM/SKpitTmp7J7k6/Am"
+      }
     }
   ]
 }

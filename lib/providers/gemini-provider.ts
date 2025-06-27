@@ -4,63 +4,139 @@ import {
   Tool,
   ChatResponse,
   ToolCall,
+  ProviderConfig,
 } from "./base-provider";
+import {
+  GoogleGenerativeAI,
+  GenerativeModel,
+  Content,
+  HarmCategory,
+  HarmBlockThreshold,
+  GenerateContentResult,
+  Part,
+} from "@google/generative-ai";
 
 export class GeminiProvider extends LLMProvider {
+  private genAI: GoogleGenerativeAI;
+  private geminiModel: GenerativeModel;
+
+  constructor(config: ProviderConfig) {
+    super(config);
+    if (!this.apiKey) {
+      throw new Error("Gemini API key is required");
+    }
+    this.genAI = new GoogleGenerativeAI(this.apiKey);
+
+    this.geminiModel = this.genAI.getGenerativeModel({
+      model: this.model,
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 8192,
+      },
+      safetySettings: [
+        {
+          category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        },
+        {
+          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+          threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        },
+      ],
+    });
+  }
+
   async sendMessage(
     messages: ChatMessage[],
     tools?: Tool[]
   ): Promise<ChatResponse> {
-    const requestBody = this.formatRequest(messages, tools);
-    const response = await this.makeRequest(
-      `/v1beta/models/${this.model}:generateContent`,
-      requestBody
-    );
-    return this.parseResponse(response);
+    try {
+      console.log(
+        "Gemini: Sending message with",
+        messages.length,
+        "messages and",
+        tools?.length || 0,
+        "tools"
+      );
+
+      const systemMessage = messages.find((m) => m.role === "system");
+      const conversationMessages = messages.filter((m) => m.role !== "system");
+
+      const contents = this.convertToGeminiFormat(conversationMessages);
+      console.log(
+        "Gemini: Converted contents:",
+        JSON.stringify(contents, null, 2)
+      );
+
+      let modelToUse = this.geminiModel;
+      const modelConfig: any = {
+        model: this.model,
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 8192,
+        },
+        safetySettings: this.geminiModel.safetySettings,
+      };
+
+      if (tools && tools.length > 0) {
+        modelConfig.tools = [this.convertToGeminiTools(tools)];
+      }
+
+      if (systemMessage) {
+        modelConfig.systemInstruction = systemMessage.content ?? undefined;
+      }
+
+      if ((tools && tools.length > 0) || systemMessage) {
+        modelToUse = this.genAI.getGenerativeModel(modelConfig);
+      }
+
+      const result = await modelToUse.generateContent({ contents });
+
+      console.log("Gemini: Got result:", JSON.stringify(result, null, 2));
+
+      return this.parseResponse(result);
+    } catch (error) {
+      console.error("Gemini API Error:", error);
+      throw error;
+    }
   }
 
   protected getHeaders(): Record<string, string> {
-    return {
-      "Content-Type": "application/json",
-      "x-goog-api-key": this.apiKey || "",
-    };
+    return {};
   }
 
   protected formatRequest(messages: ChatMessage[], tools?: Tool[]): any {
-    const contents = this.convertToGeminiFormat(messages);
-
-    const request: any = {
-      contents,
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 1000,
-      },
-    };
-
-    if (tools && tools.length > 0) {
-      request.tools = this.convertToGeminiTools(tools);
-    }
-
-    return request;
+    return {};
   }
 
-  protected parseResponse(response: any): ChatResponse {
+  protected parseResponse(result: GenerateContentResult): ChatResponse {
+    const { response } = result;
     const candidate = response.candidates?.[0];
     const parts = candidate?.content?.parts || [];
 
-    const textPart = parts.find((part: any) => part.text);
+    const textPart = parts.find((part: Part) => part.text);
     const content = textPart?.text || "";
 
     const toolCalls: ToolCall[] = parts
-      .filter((part: any) => part.functionCall)
-      .map((part: any) => ({
+      .filter((part: Part) => part.functionCall)
+      .map((part: Part) => ({
         id: Math.random().toString(36).substring(2, 15),
         type: "function" as const,
         function: {
-          name: part.functionCall.name,
-          arguments: JSON.stringify(part.functionCall.args || {}),
+          name: part.functionCall!.name,
+          arguments: JSON.stringify(part.functionCall!.args || {}),
         },
       }));
+
+    console.log("Gemini: Parsed tool calls:", toolCalls);
 
     return {
       choices: [
@@ -82,65 +158,90 @@ export class GeminiProvider extends LLMProvider {
     };
   }
 
-  private convertToGeminiFormat(messages: ChatMessage[]) {
-    return messages
-      .filter((msg) => msg.role !== "system") // Handle system messages separately if needed
-      .map((msg) => {
-        // Handle tool result messages by converting them to user messages
-        if (msg.role === "tool") {
-          return {
-            role: "user",
-            parts: [{ text: `Tool result: ${msg.content || ""}` }],
-          };
-        }
+  private convertToGeminiFormat(messages: ChatMessage[]): Content[] {
+    const contents: Content[] = [];
 
-        // Handle assistant messages with tool calls
-        if (
-          msg.role === "assistant" &&
-          msg.tool_calls &&
-          msg.tool_calls.length > 0
-        ) {
-          const parts = [];
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
 
-          // Add text content if present
-          if (msg.content) {
-            parts.push({ text: msg.content });
+      if (msg.role === "tool") {
+        let functionName = "unknown_function";
+        for (let j = i - 1; j >= 0; j--) {
+          const prevMsg = messages[j];
+          if (prevMsg.role === "assistant" && prevMsg.tool_calls) {
+            const matchingCall = prevMsg.tool_calls.find(
+              (tc) => tc.id === msg.tool_call_id
+            );
+            if (matchingCall) {
+              functionName = matchingCall.function.name;
+              break;
+            }
           }
-
-          // Add function calls
-          msg.tool_calls.forEach((toolCall) => {
-            parts.push({
-              functionCall: {
-                name: toolCall.function.name,
-                args: JSON.parse(toolCall.function.arguments || "{}"),
-              },
-            });
-          });
-
-          return {
-            role: "model",
-            parts,
-          };
         }
 
-        // Handle regular messages
-        return {
-          role: msg.role === "assistant" ? "model" : "user",
-          parts: [{ text: msg.content || "" }],
-        };
-      });
+        let responseData: any;
+        try {
+          responseData = JSON.parse(msg.content || "{}");
+        } catch {
+          responseData = { result: msg.content || "" };
+        }
+
+        contents.push({
+          role: "function",
+          parts: [
+            {
+              functionResponse: {
+                name: functionName,
+                response: responseData,
+              },
+            },
+          ],
+        });
+        continue;
+      }
+
+      if (
+        msg.role === "assistant" &&
+        msg.tool_calls &&
+        msg.tool_calls.length > 0
+      ) {
+        const parts: Part[] = [];
+
+        if (msg.content) {
+          parts.push({ text: msg.content });
+        }
+
+        msg.tool_calls.forEach((toolCall) => {
+          parts.push({
+            functionCall: {
+              name: toolCall.function.name,
+              args: JSON.parse(toolCall.function.arguments || "{}"),
+            },
+          });
+        });
+
+        contents.push({ role: "model", parts });
+        continue;
+      }
+
+      if (msg.role === "user") {
+        contents.push({ role: "user", parts: [{ text: msg.content || "" }] });
+      } else if (msg.role === "assistant") {
+        contents.push({ role: "model", parts: [{ text: msg.content || "" }] });
+      }
+    }
+
+    return contents;
   }
 
   private convertToGeminiTools(tools: Tool[]) {
-    return [
-      {
-        functionDeclarations: tools.map((tool) => ({
-          name: tool.function.name,
-          description: tool.function.description,
-          parameters: this.cleanJsonSchemaForGemini(tool.function.parameters),
-        })),
-      },
-    ];
+    return {
+      functionDeclarations: tools.map((tool) => ({
+        name: tool.function.name,
+        description: tool.function.description,
+        parameters: this.cleanJsonSchemaForGemini(tool.function.parameters),
+      })),
+    };
   }
 
   private cleanJsonSchemaForGemini(schema: any): any {
@@ -148,10 +249,8 @@ export class GeminiProvider extends LLMProvider {
       return schema;
     }
 
-    // Create a clean copy of the schema
     const cleanSchema = { ...schema };
 
-    // Remove JSON Schema metadata fields that Gemini doesn't accept
     delete cleanSchema.$schema;
     delete cleanSchema.additionalProperties;
     delete cleanSchema.$id;
@@ -159,7 +258,6 @@ export class GeminiProvider extends LLMProvider {
     delete cleanSchema.definitions;
     delete cleanSchema.$defs;
 
-    // Recursively clean nested objects
     if (cleanSchema.properties && typeof cleanSchema.properties === "object") {
       cleanSchema.properties = Object.fromEntries(
         Object.entries(cleanSchema.properties).map(([key, value]) => [
@@ -169,12 +267,10 @@ export class GeminiProvider extends LLMProvider {
       );
     }
 
-    // Clean array items
     if (cleanSchema.items) {
       cleanSchema.items = this.cleanJsonSchemaForGemini(cleanSchema.items);
     }
 
-    // Clean anyOf, oneOf, allOf
     if (cleanSchema.anyOf && Array.isArray(cleanSchema.anyOf)) {
       cleanSchema.anyOf = cleanSchema.anyOf.map((item: any) =>
         this.cleanJsonSchemaForGemini(item)
